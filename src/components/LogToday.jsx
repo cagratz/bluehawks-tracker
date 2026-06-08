@@ -11,9 +11,9 @@ export default function LogToday({ profile }) {
   const [recent,  setRecent]   = useState([])
   const [saved,   setSaved]    = useState(false)
   const [error,   setError]    = useState('')
-  const today = todayISO()
+  const [logDate, setLogDate] = useState(todayISO())
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [logDate])
 
   const fetchData = async () => {
     setLoading(true)
@@ -27,7 +27,7 @@ export default function LogToday({ profile }) {
     if (error) { setError(error.message); setLoading(false); return }
 
     setRecent(data || [])
-    const todayLog = (data || []).find((l) => l.date === today)
+    const todayLog = (data || []).find((l) => l.date === logDate)
     if (todayLog) { setShots(todayLog.shots); setSticks(todayLog.stickhandles) }
     setLoading(false)
   }
@@ -37,7 +37,7 @@ export default function LogToday({ profile }) {
     const { error } = await supabase
       .from('training_logs')
       .upsert(
-        { user_id: profile.id, date: today, shots, stickhandles: sticks },
+        { user_id: profile.id, date: logDate, shots, stickhandles: sticks },
         { onConflict: 'user_id,date' }
       )
     if (error) { setError(error.message) }
@@ -52,16 +52,16 @@ export default function LogToday({ profile }) {
   const adj  = (setter, val, delta) => setter(Math.max(0, val + delta))
   const quick = (setter, val, amt)  => setter(Math.max(0, val + amt))
 
-  if (loading) return <Spinner label="Loading today's log…" />
+  if (loading) return <Spinner label="Loading today's logâ¦" />
 
-  const hasEntry = recent.some((l) => l.date === today)
+  const hasEntry = recent.some((l) => l.date === logDate)
 
   const Counter = ({ label, val, setter, color }) => (
     <div className="counter-card">
       <div className="counter-label">{label}</div>
       <div className="counter-display" style={{ color }}>{fmt(val)}</div>
       <div className="counter-btns">
-        <button className="btn-ctr" onClick={() => adj(setter, val, -10)}>−</button>
+        <button className="btn-ctr" onClick={() => adj(setter, val, -10)}>â</button>
         <input
           className="ctr-input"
           type="number" min={0}
@@ -81,14 +81,24 @@ export default function LogToday({ profile }) {
   return (
     <div className="main">
       <div className="page-header">
-        <div className="page-title">Log Today</div>
+        <div className="page-title">Log Training</div>
         <div className="page-sub">
-          {fmtDateLong(today)} ·{' '}
-          {hasEntry ? '✓ Entry saved — update below' : 'No entry yet today'}
+          {fmtDateLong(logDate)} Â·{' '}
+          {hasEntry ? 'â Entry saved â update below' : 'No entry yet today'}
         </div>
-      </div>
 
-      {saved  && <div className="success-msg">✓ Today's training logged successfully!</div>}
+      <div className="date-picker-row">
+        <label htmlFor="log-date">Date:</label>
+        <input
+          id="log-date"
+          type="date"
+          value={logDate}
+          max={todayISO()}
+          onChange={e => setLogDate(e.target.value)}
+        />
+      </div>      </div>
+
+      {saved  && <div className="success-msg">â Today's training logged successfully!</div>}
       {error  && <div className="error-msg">{error}</div>}
 
       <div className="counter-grid">
@@ -102,14 +112,14 @@ export default function LogToday({ profile }) {
         onClick={handleSave}
         disabled={saving}
       >
-        {saving ? 'SAVING…' : hasEntry ? 'UPDATE LOG' : 'SAVE LOG'}
+        {saving ? 'SAVINGâ¦' : hasEntry ? 'UPDATE LOG' : 'SAVE LOG'}
       </button>
 
       <div className="card">
         <div className="card-title">Recent Activity</div>
         {recent.length === 0 ? (
           <p style={{ color: 'var(--muted)', fontFamily: 'Barlow Condensed', fontSize: 15 }}>
-            No logs yet — add today's first entry above!
+            No logs yet â add today's first entry above!
           </p>
         ) : (
           <div className="table-wrap">
