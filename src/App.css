@@ -164,6 +164,15 @@ tr:hover td { background: rgba(255,255,255,0.025); }
 .demo-hint { margin-top: 18px; padding: 12px; background: rgba(0,0,0,0.25); border-radius: 8px; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; color: var(--muted); text-align: center; line-height: 1.7; }
 .demo-hint strong { color: var(--white); }
 
+/* ── PASSWORD SHOW/HIDE & FORGOT PASSWORD ─────────────── */
+.pw-wrap { position: relative; display: flex; align-items: center; }
+.pw-wrap .form-input { flex: 1; padding-right: 42px; }
+.pw-toggle { position: absolute; right: 10px; background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; color: var(--muted); transition: color .2s; }
+.pw-toggle:hover { color: var(--white); }
+.forgot-wrap { margin-top: 10px; text-align: center; }
+.forgot-btn { background: none; border: none; cursor: pointer; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; transition: color .2s; padding: 0; }
+.forgot-btn:hover { color: var(--white); }
+
 /* ── RESPONSIVE ───────────────────────────────────────────── */
 @media (max-width: 640px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
