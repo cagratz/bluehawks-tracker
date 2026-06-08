@@ -2,18 +2,21 @@ import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 
 export default function AuthScreen() {
-  const [mode,     setMode]     = useState('login')
-  const [name,     setName]     = useState('')
-  const [jersey,   setJersey]   = useState('')
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
+  const [mode,        setMode]        = useState('login')
+  const [name,        setName]        = useState('')
+  const [jersey,      setJersey]      = useState('')
+  const [email,       setEmail]       = useState('')
+  const [password,    setPassword]    = useState('')
+  const [showPw,      setShowPw]      = useState(false)
+  const [loading,     setLoading]     = useState(false)
+  const [error,       setError]       = useState('')
+  const [resetMsg,    setResetMsg]    = useState('')
 
-  const switchMode = (m) => { setMode(m); setError('') }
+  const switchMode = (m) => { setMode(m); setError(''); setResetMsg('') }
 
   const handleSubmit = async () => {
     setError('')
+    setResetMsg('')
     if (!email.trim() || !password.trim()) { setError('Email and password are required.'); return }
     if (mode === 'create' && !name.trim())  { setError('Name is required.');              return }
     if (password.length < 6)                { setError('Password must be 6+ characters.'); return }
@@ -43,6 +46,17 @@ export default function AuthScreen() {
     setLoading(false)
   }
 
+  const handleForgotPassword = async () => {
+    setError('')
+    setResetMsg('')
+    if (!email.trim()) { setError('Enter your email above, then click Forgot Password.'); return }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin,
+    })
+    if (error) setError(error.message)
+    else setResetMsg('Password reset email sent! Check your inbox.')
+  }
+
   const onKey = (e) => { if (e.key === 'Enter') handleSubmit() }
 
   return (
@@ -58,6 +72,7 @@ export default function AuthScreen() {
         </div>
 
         {error && <div className="error-msg">{error}</div>}
+        {resetMsg && <div className="success-msg">{resetMsg}</div>}
 
         {mode === 'create' && (
           <div className="form-row">
@@ -82,13 +97,27 @@ export default function AuthScreen() {
 
         <div className="form-group">
           <label className="form-label">Password</label>
-          <input className="form-input" type="password" placeholder="••••••••"
-            value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={onKey} />
+          <div className="pw-wrap">
+            <input className="form-input" type={showPw ? 'text' : 'password'} placeholder="········"
+              value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={onKey} />
+            <button type="button" className="pw-toggle" onClick={() => setShowPw(p => !p)}
+              aria-label={showPw ? 'Hide password' : 'Show password'}>
+              {showPw ? '🙈' : '👁️'}
+            </button>
+          </div>
         </div>
 
         <button className="btn-primary" onClick={handleSubmit} disabled={loading}>
           {loading ? 'PLEASE WAIT…' : mode === 'login' ? 'SIGN IN' : 'CREATE ACCOUNT'}
         </button>
+
+        {mode === 'login' && (
+          <div className="forgot-wrap">
+            <button type="button" className="forgot-btn" onClick={handleForgotPassword}>
+              Forgot Password?
+            </button>
+          </div>
+        )}
 
         {mode === 'login' && (
           <div className="demo-hint">
