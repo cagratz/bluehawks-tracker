@@ -5,7 +5,7 @@ import { todayISO, fmtDateLong, fmtDate, fmt } from '../utils'
 
 export default function LogToday({ profile }) {
   const [loading, setLoading]  = useState(true)
-  const [saving,  setSaving]   = useState(false)
+  const [saving,  setSaving]   = usehState(false)
   const [shots,   setShots]    = useState(0)
   const [sticks,  setSticks]   = useState(0)
   const [recent,  setRecent]   = useState([])
