@@ -50,9 +50,7 @@ export default function AuthScreen() {
     setError('')
     setResetMsg('')
     if (!email.trim()) { setError('Enter your email above, then click Forgot Password.'); return }
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: window.location.origin,
-    })
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim())
     if (error) setError(error.message)
     else setResetMsg('Password reset email sent! Check your inbox.')
   }
