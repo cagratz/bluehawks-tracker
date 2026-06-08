@@ -8,84 +8,67 @@ export default function LogToday({ profile }) {
   const [saving,  setSaving]   = useState(false)
   const [shots,   setShots]    = useState(0)
   const [sticks,  setSticks]   = useState(0)
-  const [recent,  setRecent]   = useState([])
-  const [saved,   setSaved]    = useState(false)
-  const [error,   setError]    = useState('')
-  const [logDate, setLogDate] = useState(todayISO())
+  const [status,  setStatus]   = useState('')
+  const [logDate, setLogDate]  = useState(todayISO())
 
-  useEffect(() => { fetchData() }, [logDate])
-
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true)
     const { data, error } = await supabase
       .from('training_logs')
       .select('*')
       .eq('user_id', profile.id)
-      .order('date', { ascending: false })
-      .limit(14)
-
-    if (error) { setError(error.message); setLoading(false); return }
-
-    setRecent(data || [])
-    const todayLog = (data || []).find((l) => l.date === logDate)
-    if (todayLog) { setShots(todayLog.shots); setSticks(todayLog.stickhandles) }
+      .eq('date', logDate)
+      .maybeSingle()
+    if (!error && data) {
+      setShots(data.shots  ?? 0)
+      setSticks(data.sticks ?? 0)
+      setStatus('Entry saved — update below')
+    } else {
+      setShots(0)
+      setSticks(0)
+      setStatus('')
+    }
     setLoading(false)
   }
 
-  const handleSave = async () => {
-    setSaving(true); setError('')
+  useEffect(() => { fetchData() }, [logDate])
+
+  async function handleSave() {
+    setSaving(true)
+    setStatus('')
     const { error } = await supabase
       .from('training_logs')
       .upsert(
-        { user_id: profile.id, date: logDate, shots, stickhandles: sticks },
+        { user_id: profile.id, date: logDate, shots, sticks: sticks },
         { onConflict: 'user_id,date' }
       )
-    if (error) { setError(error.message) }
-    else {
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-      fetchData()
-    }
     setSaving(false)
+    setStatus(error ? 'Error saving — try again' : 'Saved!')
+    if (!error) fetchData()
   }
 
-  const adj  = (setter, val, delta) => setter(Math.max(0, val + delta))
-  const quick = (setter, val, amt)  => setter(Math.max(0, val + amt))
+  const [recentLogs, setRecentLogs] = useState([])
+  useEffect(() => {
+    supabase
+      .from('training_logs')
+      .select('*')
+      .eq('user_id', profile.id)
+      .order('date', { ascending: false })
+      .limit(10)
+      .then(({ data }) => setRecentLogs(data ?? []))
+  }, [logDate])
 
-  if (loading) return <Spinner label="Loading today's logâ¦" />
-
-  const hasEntry = recent.some((l) => l.date === logDate)
-
-  const Counter = ({ label, val, setter, color }) => (
-    <div className="counter-card">
-      <div className="counter-label">{label}</div>
-      <div className="counter-display" style={{ color }}>{fmt(val)}</div>
-      <div className="counter-btns">
-        <button className="btn-ctr" onClick={() => adj(setter, val, -10)}>â</button>
-        <input
-          className="ctr-input"
-          type="number" min={0}
-          value={val}
-          onChange={(e) => setter(Math.max(0, parseInt(e.target.value) || 0))}
-        />
-        <button className="btn-ctr" onClick={() => adj(setter, val, 10)}>+</button>
-      </div>
-      <div className="quick-btns">
-        {[25, 50, 100, 250].map((n) => (
-          <button key={n} className="btn-quick" onClick={() => quick(setter, val, n)}>+{n}</button>
-        ))}
-      </div>
-    </div>
-  )
+  if (loading) return <Spinner />
 
   return (
-    <div className="main">
+    <div className="page log-today-page">
       <div className="page-header">
         <div className="page-title">Log Training</div>
-        <div className="page-sub">
-          {fmtDateLong(logDate)} Â·{' '}
-          {hasEntry ? 'â Entry saved â update below' : 'No entry yet today'}
+        <div className="page-subtitle">
+          {fmtDateLong(logDate)}
+          {status && <> &middot; <span className="status-msg">&#x2713; {status}</span></>}
         </div>
+      </div>
 
       <div className="date-picker-row">
         <label htmlFor="log-date">Date:</label>
@@ -96,58 +79,81 @@ export default function LogToday({ profile }) {
           max={todayISO()}
           onChange={e => setLogDate(e.target.value)}
         />
-      </div>      </div>
-
-      {saved  && <div className="success-msg">â Today's training logged successfully!</div>}
-      {error  && <div className="error-msg">{error}</div>}
-
-      <div className="counter-grid">
-        <Counter label="Shots on Net"  val={shots}  setter={setShots}  color="#CE1126" />
-        <Counter label="Stickhandles"  val={sticks} setter={setSticks} color="#4db8ff" />
       </div>
 
-      <button
-        className="btn-primary"
-        style={{ maxWidth: 300, display: 'block', margin: '0 auto 28px' }}
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saving ? 'SAVINGâ¦' : hasEntry ? 'UPDATE LOG' : 'SAVE LOG'}
+      <div className="counters-row">
+        <div className="counter-card">
+          <div className="counter-label">SHOTS ON NET</div>
+          <div className="counter-value shots">{fmt(shots)}</div>
+          <div className="stepper">
+            <button className="step-btn" onClick={() => setShots(s => Math.max(0, s - 1))}>&#8722;</button>
+            <input
+              className="step-input"
+              type="number"
+              min="0"
+              value={shots}
+              onChange={e => setShots(Math.max(0, Number(e.target.value)))}
+            />
+            <button className="step-btn" onClick={() => setShots(s => s + 1)}>+</button>
+          </div>
+          <div className="quick-add">
+            {[25, 50, 100, 250].map(n => (
+              <button key={n} className="quick-btn shots-btn" onClick={() => setShots(s => s + n)}>+{n}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="counter-card">
+          <div className="counter-label">STICKHANDLES</div>
+          <div className="counter-value sticks">{fmt(sticks)}</div>
+          <div className="stepper">
+            <button className="step-btn" onClick={() => setSticks(s => Math.max(0, s - 1))}>&#8722;</button>
+            <input
+              className="step-input"
+              type="number"
+              min="0"
+              value={sticks}
+              onChange={e => setSticks(Math.max(0, Number(e.target.value)))}
+            />
+            <button className="step-btn" onClick={() => setSticks(s => s + 1)}>+</button>
+          </div>
+          <div className="quick-add">
+            {[25, 50, 100, 250].map(n => (
+              <button key={n} className="quick-btn sticks-btn" onClick={() => setSticks(s => s + n)}>+{n}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button className="save-btn" onClick={handleSave} disabled={saving}>
+        {saving ? 'SAVING…' : 'UPDATE LOG'}
       </button>
 
-      <div className="card">
-        <div className="card-title">Recent Activity</div>
-        {recent.length === 0 ? (
-          <p style={{ color: 'var(--muted)', fontFamily: 'Barlow Condensed', fontSize: 15 }}>
-            No logs yet â add today's first entry above!
-          </p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Shots</th>
-                  <th>Stickhandles</th>
-                  <th>Total</th>
+      {recentLogs.length > 0 && (
+        <div className="recent-activity">
+          <div className="section-label">RECENT ACTIVITY</div>
+          <table className="activity-table">
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>SHOTS</th>
+                <th>STICKHANDLES</th>
+                <th>TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentLogs.map(log => (
+                <tr key={log.id}>
+                  <td>{fmtDate(log.date)}</td>
+                  <td className="shots">{fmt(log.shots)}</td>
+                  <td className="sticks">{fmt(log.sticks)}</td>
+                  <td>{fmt(log.shots + log.sticks)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {recent.map((l) => (
-                  <tr key={l.id}>
-                    <td>{fmtDate(l.date)}</td>
-                    <td className="num-cell" style={{ color: '#CE1126' }}>{fmt(l.shots)}</td>
-                    <td className="num-cell" style={{ color: '#4db8ff' }}>{fmt(l.stickhandles)}</td>
-                    <td className="num-cell" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                      {fmt(l.shots + l.stickhandles)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
